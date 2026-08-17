@@ -25,16 +25,15 @@ This repository strips away production complexity so you can clearly see how tha
 
 ### What is implemented
 
-- Core dataset class with the same high-level spirit as `LeRobotDataset`
-- Loading of `meta/info.json`, episode metadata, and basic tabular data
-- Frame indexing (`dataset[idx]`)
-- Support for `delta_timestamps` (temporal context windows)
-- Clear separation between metadata, tabular data, and video frames
-- Extensive comments explaining *why* things are done a certain way
+- [x] Core dataset class with the same high-level spirit as `LeRobotDataset`
+- [x] Loading of `meta/info.json`, episode metadata, and basic tabular data
+- [x] Frame indexing (`dataset[idx]`)
+- [ ] Support for `delta_timestamps` (temporal context windows)
+- [ ] Clear separation between metadata, tabular data, and video frames
+- [ ] Extensive comments explaining *why* things are done a certain way
 
 ### What is simplified / not implemented
 
-- Full video decoding backends (torchcodec, etc.)
 - Dataset writing / recording (`create`, `add_frame`, `save_episode`...)
 - Hugging Face Hub download & caching logic
 - Advanced features (depth, multi-dataset, streaming, etc.)
