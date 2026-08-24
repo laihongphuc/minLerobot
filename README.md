@@ -29,6 +29,7 @@ This repository strips away production complexity so you can clearly see how tha
 - [x] Loading of `meta/info.json`, episode metadata, and basic tabular data
 - [x] Frame indexing (`dataset[idx]`)
 - [ ] Support for `delta_timestamps` (temporal context windows)
+    - [ ] Support padding and masking near episode ends
 - [ ] Clear separation between metadata, tabular data, and video frames
 - [ ] Extensive comments explaining *why* things are done a certain way
 

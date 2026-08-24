@@ -1,6 +1,8 @@
+
 import json
 import os
-from typing import Callable, Dict, List, Optional, Tuple
+import math
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
 import numpy as np
 import pandas as pd
@@ -15,6 +17,8 @@ class MyLeRobotDataset(Dataset):
         self,
         data_path: str,
         image_transform: Optional[Callable] = None,
+        delta_timestamp: Optional[dict[str, list[float]]] = None,
+        time_tolerance: float = 0.04,
     ):
         super().__init__()
         self.data_path = data_path
@@ -30,12 +34,24 @@ class MyLeRobotDataset(Dataset):
         ) = self._process_all_data()
         self.image_transform = image_transform
 
-    # metadata processing
+        # Action chunk related
+        _timestamp_keys = ["action", "state"]
+        _timestamp_keys.extend(self.observation_image_keys)
+        if delta_timestamp is not None:
+            # Only support timestamp keys in the list _timestamp_keys
+            for key in delta_timestamp:
+                if key not in _timestamp_keys:
+                    raise ValueError(f"Invalid key: {key} for delta timestamp")
+
+            self.delta_timestamp = delta_timestamp
+            self.time_tolerance = time_tolerance
+            assert self.check_delta_timestamps(self.delta_timestamp, self.fps, self.time_tolerance), "delta timestamps are not valid"
+            self.delta_indices = self.get_delta_indices(self.delta_timestamp, self.fps)
+    
     def _process_metadata(
         self,
     ):
         metadata_path = os.path.join(self.data_path, "meta")
-        # read info.json
         with open(os.path.join(metadata_path, "info.json"), "r") as f:
             info = json.load(f)
 
@@ -74,6 +90,21 @@ class MyLeRobotDataset(Dataset):
         self,
     ):
         return self.metadata["fps"]
+    
+    def check_delta_timestamps(
+        self,
+        delta_timestamps: dict[str, list[float]],
+        fps: int, 
+        tolerance_s: float
+    ) -> bool:
+        """Why we need to check the delta timestamps?
+        The delta timestamps are used to compute the chunk index => need to be valid
+        """
+        for key in delta_timestamps:
+            eval_tensor = [math.fabs(round(ts * fps) - ts * fps) < tolerance_s for ts in delta_timestamps[key]]
+            if not all(eval_tensor):
+                return False
+        return True
 
     def _index_to_file_path(
         self,
@@ -90,6 +121,60 @@ class MyLeRobotDataset(Dataset):
     ):
         """Return the timestamp for the given index"""
         return self.timestamps[index]
+
+    def get_delta_indices(
+        self,
+        delta_timestamps: dict[str, list[float]], 
+        fps: int,
+    ) -> dict[str, list[int]]:
+        """Return the delta indices for the given delta timestamps""" 
+        return {
+            key: [round(ts * fps) for ts in delta_timestamps[key]]
+            for key in delta_timestamps
+        }
+    
+    @staticmethod
+    def _clamp(
+        value: Any,
+        min_value: Any  ,
+        max_value: Any
+    ) -> Any:
+        """Clamp the value between the min and max values"""
+        return max(min(value, max_value), min_value)
+
+    def _get_query_indices(
+        self, 
+        abs_idx: int
+    ) -> tuple[dict[str, list[int]], dict[str, torch.Tensor]]:
+        """Compute query indices with delta timestamps
+
+        Implementation explaination: For the near end or near start of the episode, 
+        we choose to pad the value with the first or last value of the episode.
+        """ 
+        current_ep = self.episode_index[abs_idx]
+        query_indices = {}
+        padding = {}
+        for key in self.delta_indices:
+            padding[key] = [False for _ in range(len(self.delta_indices[key]))]
+            query_indices[key] = []
+            current_min, current_max = None, None
+            for i, rel_idx in enumerate(self.delta_indices[key]):
+                current_idx = rel_idx + abs_idx 
+                if current_idx < 0:
+                    padding[key][i] = True
+                elif current_idx >= len(self):
+                    padding[key][i] = True
+                else:
+                    if current_ep == self.episode_index[current_idx]:
+                        if current_min is None or current_min > current_idx:
+                            current_min = current_idx 
+                        if current_max is None or current_max < current_idx:
+                            current_max = current_idx 
+                    else:
+                        padding[key][i] = True
+                query_indices[key].append(current_idx)
+            query_indices[key] = [self._clamp(current_idx, current_min, current_max) for current_idx in query_indices[key]]
+        return query_indices, padding
 
     # data processing
     def _process_all_data(
@@ -203,22 +288,40 @@ class MyLeRobotDataset(Dataset):
         return self.num_frames
 
     def __getitem__(self, index):
+        query_indices, padding = self._get_query_indices(index)
         result = {
-            "state": torch.from_numpy(self.state[index]),
-            "action": torch.from_numpy(self.action[index]),
             "episode_index": self.episode_index[index],
             "frame_index": self.frame_index[index],
             "timestamp": self.timestamps[index],
         }
         file_path = self._index_to_file_path(index)
 
+        # Process 
+        for key in ["action", "state"]:
+            if key not in query_indices:
+                _indices_list = [index]
+                _padding = torch.tensor([False])
+            else:
+                _indices_list = query_indices[key]
+                _padding = torch.tensor(padding[key])
+            result[key] = torch.from_numpy(self.state[_indices_list]).squeeze(0)
+            result[f"{key}_is_pad"] = _padding
+
+
         for key in self.observation_image_keys:
             video_path = os.path.join(self.data_path, "videos", key, file_path)
             video = VideoDecoder(video_path)
-            frame = video[index]
+            if key not in query_indices: 
+                _indices_list = [index]
+                _padding = torch.tensor([False])
+            else:
+                _indices_list = query_indices[key]
+                _padding = torch.tensor(padding[key])
+            frame = video.get_frames_at(indices=_indices_list).data
             if self.image_transform is not None:
                 frame = self.image_transform(frame)
             result[key] = frame
+            result[f"{key}_is_pad"] = _padding
         return result
 
 
