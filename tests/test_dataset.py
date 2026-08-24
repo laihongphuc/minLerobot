@@ -11,13 +11,8 @@ import torch
 from torch.utils.data import DataLoader
 from torchvision import transforms
 
-from minlerobot import (
-    MyLeRobotDataset,
-    collate_fn,
-    get_dataset_path,
-    load_norm_stats,
-    save_norm_stats,
-)
+from minlerobot import (MyLeRobotDataset, collate_fn, get_dataset_path,
+                        load_norm_stats, save_norm_stats)
 
 try:
     DATA_PATH = get_dataset_path()
