@@ -1,0 +1,36 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "minlerobot"
+version = "0.1.0"
+description = "A minimal, educational re-implementation of Hugging Face LeRobotDataset."
+readme = "README.md"
+requires-python = ">=3.10"
+authors = [{ name = "laihongphuc" }]
+dependencies = [
+    "numpy",
+    "pandas",
+    "pyarrow",
+    "torch",
+    "torchvision",
+    "torchcodec",
+    "tqdm",
+]
+
+[project.optional-dependencies]
+dev = ["pytest"]
+
+[project.scripts]
+minlerobot-norm-stats = "minlerobot.compute_norm_stats:main"
+
+[project.urls]
+Homepage = "https://github.com/laihongphuc/minLerobot"
+
+[tool.setuptools.packages.find]
+include = ["minlerobot*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
