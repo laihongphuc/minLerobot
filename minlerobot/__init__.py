@@ -3,6 +3,7 @@ from minlerobot.compute_norm_stats import (
     load_norm_stats,
     save_norm_stats,
 )
+from minlerobot.config import get_dataset_path
 from minlerobot.dataset import MyLeRobotDataset, collate_fn
 
 __all__ = [
@@ -11,4 +12,5 @@ __all__ = [
     "compute_norm_stats",
     "save_norm_stats",
     "load_norm_stats",
+    "get_dataset_path",
 ]

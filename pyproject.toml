@@ -17,6 +17,7 @@ dependencies = [
     "torchvision",
     "torchcodec",
     "tqdm",
+    "python-dotenv",
 ]
 
 [project.optional-dependencies]

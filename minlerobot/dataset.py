@@ -9,17 +9,19 @@ import torch
 from torch.utils.data import Dataset
 from torchcodec.decoders import VideoDecoder
 
+from minlerobot.config import get_dataset_path
+
 
 class MyLeRobotDataset(Dataset):
     def __init__(
         self,
-        data_path: str,
+        data_path: Optional[str] = None,
         image_transform: Optional[Callable] = None,
         delta_timestamp: Optional[dict[str, list[float]]] = None,
         time_tolerance: float = 0.04,
     ):
         super().__init__()
-        self.data_path = data_path
+        self.data_path = data_path or get_dataset_path()
         self.metadata = self._process_metadata()
         (
             self.chunk_index,

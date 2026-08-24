@@ -1,7 +1,7 @@
 """Pytest cases for MyLeRobotDataset.
 
 Run from the repo root after `pip install -e .[dev]`:
-    DATASET_PATH=/path/to/so101_pick pytest tests/ -v
+    pytest tests/ -v
 """
 
 import os
@@ -11,11 +11,20 @@ import torch
 from torch.utils.data import DataLoader
 from torchvision import transforms
 
-from minlerobot import MyLeRobotDataset, collate_fn, load_norm_stats, save_norm_stats
-
-DATA_PATH = os.environ.get("DATASET_PATH") or os.environ.get(
-    "MINLEROBOT_DATA_PATH", "/home/phuclh12/data/so101_pick/"
+from minlerobot import (
+    MyLeRobotDataset,
+    collate_fn,
+    get_dataset_path,
+    load_norm_stats,
+    save_norm_stats,
 )
+
+try:
+    DATA_PATH = get_dataset_path()
+except ValueError:
+    DATA_PATH = ""
+
+print(f"DATA_PATH: {DATA_PATH}")
 FPS = 30
 ACTION_DIM = 6
 SAMPLE_INDICES = [0, 1000, 5000]

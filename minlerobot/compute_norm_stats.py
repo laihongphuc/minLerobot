@@ -6,6 +6,7 @@ import torch
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
+from minlerobot.config import get_dataset_path
 from minlerobot.dataset import MyLeRobotDataset, collate_fn
 
 
@@ -61,7 +62,7 @@ def create_dataloader(
 
 
 def compute_norm_stats(
-    dataset_path: str,
+    dataset_path: Optional[str] = None,
     device: Optional[str] = None,
     batch_size: int = 128,
 ) -> dict[str, Tuple[torch.Tensor, torch.Tensor]]:
@@ -72,7 +73,7 @@ def compute_norm_stats(
     """
     if device is None:
         device = "cuda" if torch.cuda.is_available() else "cpu"
-    dataset = MyLeRobotDataset(dataset_path)
+    dataset = MyLeRobotDataset(dataset_path or get_dataset_path())
     dataloader = create_dataloader(dataset, batch_size=batch_size)
 
     keys = ["state", "action"]
@@ -109,7 +110,12 @@ def main():
     parser = argparse.ArgumentParser(
         description="Compute mean/std of state and action for a LeRobot-format dataset."
     )
-    parser.add_argument("dataset_path", help="Path to a local LeRobot dataset directory")
+    parser.add_argument(
+        "dataset_path",
+        nargs="?",
+        default=None,
+        help="Path to a local LeRobot dataset directory (default: DATASET_PATH from .env)",
+    )
     parser.add_argument(
         "-o",
         "--output",
@@ -125,7 +131,9 @@ def main():
     args = parser.parse_args()
 
     stats = compute_norm_stats(
-        args.dataset_path, device=args.device, batch_size=args.batch_size
+        args.dataset_path or get_dataset_path(),
+        device=args.device,
+        batch_size=args.batch_size,
     )
     save_norm_stats(stats, args.output)
     print(f"Wrote norm stats to {args.output}")

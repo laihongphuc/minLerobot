@@ -37,11 +37,14 @@ You need a local dataset in LeRobot format (for example `so101_pick`):
   ...
 ```
 
-Point tests and scripts at it with:
+Copy `.env.example` to `.env` and set the path (`.env` is gitignored):
 
 ```bash
-export DATASET_PATH=/path/to/so101_pick
+cp .env.example .env
+# DATASET_PATH=/path/to/so101_pick
 ```
+
+`python-dotenv` loads this automatically. You can still override it with `export DATASET_PATH=...`.
 
 ## Use the dataset
 
@@ -50,7 +53,7 @@ Load a single frame (state, action, and camera images):
 ```python
 from minlerobot import MyLeRobotDataset
 
-dataset = MyLeRobotDataset(data_path="/path/to/so101_pick")
+dataset = MyLeRobotDataset()  # uses DATASET_PATH from .env
 print(len(dataset), dataset.fps, dataset.observation_image_keys)
 
 item = dataset[0]
@@ -68,10 +71,7 @@ delta_timestamp = {
     "observation.images.side": [i / fps for i in range(8)],  # 8 image frames
 }
 
-dataset = MyLeRobotDataset(
-    data_path="/path/to/so101_pick",
-    delta_timestamp=delta_timestamp,
-)
+dataset = MyLeRobotDataset(delta_timestamp=delta_timestamp)
 item = dataset[307]
 print(item["action"].shape)                  # (11, 6)
 print(item["action_is_pad"].shape)           # (11,)
@@ -95,10 +95,7 @@ Optional image transforms (any `torchvision` transform that accepts a `(N, C, H,
 ```python
 from torchvision import transforms
 
-dataset = MyLeRobotDataset(
-    data_path="/path/to/so101_pick",
-    image_transform=transforms.Resize((224, 224)),
-)
+dataset = MyLeRobotDataset(image_transform=transforms.Resize((224, 224)))
 ```
 
 ## Compute norm stats
@@ -108,8 +105,8 @@ Mean and std of `state` and `action` are written to JSON for later normalization
 CLI (after install):
 
 ```bash
-minlerobot-norm-stats /path/to/so101_pick -o norm_stats.json
-minlerobot-norm-stats /path/to/so101_pick -o norm_stats.json --device cpu --batch-size 64
+minlerobot-norm-stats -o norm_stats.json
+minlerobot-norm-stats -o norm_stats.json --device cpu --batch-size 64
 ```
 
 Or from Python:
@@ -117,7 +114,7 @@ Or from Python:
 ```python
 from minlerobot import compute_norm_stats, save_norm_stats, load_norm_stats
 
-stats = compute_norm_stats("/path/to/so101_pick")
+stats = compute_norm_stats()  # uses DATASET_PATH from .env
 save_norm_stats(stats, "norm_stats.json")
 
 mean, std = load_norm_stats("norm_stats.json")["action"]
@@ -128,12 +125,11 @@ Uses CUDA when it is available, otherwise CPU.
 
 ## Test
 
-Tests expect a real dataset on disk. Set `DATASET_PATH` (or `MINLEROBOT_DATA_PATH`) first.
+Tests expect a real dataset on disk. Put `DATASET_PATH` in `.env` first.
 
 ```bash
 conda activate lerobot
 pip install -e ".[dev]"
-export DATASET_PATH=/path/to/so101_pick
 pytest tests/ -v
 ```
 
